@@ -60,6 +60,15 @@ export default class Controls {
         this.logo = null;
         this.div = null;
         this.dimensions = {};
+        this.userInactiveTimeout = () => {
+            // Rerun at the scheduled time if remaining time is greater than the display refresh rate
+            const remainingTime = this.inactiveTime - now();
+            if (this.inactiveTime && remainingTime > 16) {
+                this.activeTimeout = setTimeout(this.userInactiveTimeout, remainingTime);
+                return;
+            }
+            this.userInactive();
+        };
     }
 
     enable(api, model) {
@@ -281,7 +290,11 @@ export default class Controls {
 
         // Hide controls when focus leaves the player
         const blurCallback = (evt) => {
-            const insideContainer = this.playerContainer.contains(evt.relatedTarget);
+            const focusedElement = evt.relatedTarget || document.querySelector(':focus');
+            if (!focusedElement) {
+                return;
+            }
+            const insideContainer = this.playerContainer.contains(focusedElement);
             if (!insideContainer) {
                 this.userInactive();
             }
@@ -396,7 +409,7 @@ export default class Controls {
         if (timeout > 0) {
             this.inactiveTime = now() + timeout;
             if (this.activeTimeout === -1) {
-                this.activeTimeout = setTimeout(() => this.userInactive(), timeout);
+                this.activeTimeout = setTimeout(this.userInactiveTimeout, timeout);
             }
         } else {
             clearTimeout(this.activeTimeout);
@@ -413,11 +426,6 @@ export default class Controls {
     userInactive() {
         clearTimeout(this.activeTimeout);
         this.activeTimeout = -1;
-        const remainingTime = this.inactiveTime - now();
-        if (this.inactiveTime && remainingTime > 16) {
-            this.activeTimeout = setTimeout(() => this.userInactive(), remainingTime);
-            return;
-        }
         if (this.settingsMenu.visible) {
             return;
         }
